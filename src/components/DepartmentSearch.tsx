@@ -36,10 +36,12 @@ export function DepartmentSearch({
     setRenderCount(prev => prev + 1);
   }, [departments]);
 
-  // 検索フィルターを適用
+  // 検索フィルターを適用（前方一致に変更）
   const filteredDepartments = search.trim() === ''
     ? [...departments] // 空の検索の場合はすべての部署を表示
-    : departments.filter(dept => dept.toLowerCase().includes(search.toLowerCase()));
+    : departments.filter(dept =>
+      dept.toLowerCase().startsWith(search.toLowerCase())
+    );
 
   console.log('フィルター後の部署リスト:', filteredDepartments);
   console.log('現在のレンダリング回数:', renderCount);
@@ -99,7 +101,7 @@ export function DepartmentSearch({
         </div>
 
         {/* 厳密にユニークなキーを使用して強制的に再レンダリング */}
-        {[...departments].map((dept, index) => (
+        {filteredDepartments.map((dept, index) => (
           <div key={`dept-${renderCount}-${index}-${dept}`} className="mb-1">
             <button
               className={`w-full text-left px-3 py-2 hover:bg-gray-100 rounded-md ${selectedNode.data.label === dept ? 'bg-blue-50' : ''
@@ -111,8 +113,8 @@ export function DepartmentSearch({
           </div>
         ))}
 
-        {departments.length === 0 && (
-          <div className="text-gray-500 text-center py-2">部署がありません</div>
+        {filteredDepartments.length === 0 && (
+          <div className="text-gray-500 text-center py-2">該当する部署がありません</div>
         )}
       </div>
 
