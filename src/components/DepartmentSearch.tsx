@@ -95,10 +95,8 @@ export function DepartmentSearch({
         />
       </div>
 
-      <div className="max-h-48 overflow-y-auto mb-4 border border-gray-200 rounded p-1">
-        <div className="text-xs text-gray-500 mb-2">
-          デバッグ: 部署数 {departments.length} | レンダリング回数: {renderCount}
-        </div>
+      <div className="max-h-[36rem] overflow-y-auto mb-4 border border-gray-200 rounded p-1">
+        {/* デバッグ情報は削除 */}
 
         {/* 厳密にユニークなキーを使用して強制的に再レンダリング */}
         {filteredDepartments.map((dept, index) => (
