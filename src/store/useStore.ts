@@ -433,32 +433,69 @@ const useStore = create<OrgChartState>((set, get) => ({
 
     // 部署追加のハンドラ
     handleAddDepartment: (department) => {
+        console.log('handleAddDepartment が呼び出されました:', department);
+
+        // 部署が追加されたかどうかを追跡するための変数
+        let departmentAdded = false;
+
+        // 直接イミュータブルな方法でステートを更新
         set(state => {
-            if (state.departments.includes(department)) return state;
+            console.log('現在の部署リスト:', state.departments);
 
-            const newDepartments = [...state.departments, department];
-
-            // 履歴アクションでなければ履歴に追加
-            if (state.isInitialized && !state.isDragging && !state.isHistoryAction) {
-                const currentState = { nodes: state.nodes, edges: state.edges, departments: newDepartments };
-                const newHistory = [...state.history.slice(0, state.currentIndex + 1), currentState];
-
-                // 状態をストレージに保存
-                saveToStorage({ nodes: state.nodes, edges: state.edges, departments: newDepartments });
-
-                return {
-                    departments: newDepartments,
-                    history: newHistory,
-                    currentIndex: state.currentIndex + 1,
-                    isHistoryAction: false
-                };
+            if (state.departments.includes(department)) {
+                console.log('部署は既に存在しています');
+                return state; // 変更なし
             }
 
-            return {
+            console.log('新しい部署を追加します');
+            // 新しい配列を作成
+            const newDepartments = [...state.departments, department];
+            departmentAdded = true;
+
+            console.log('新しい部署リスト:', newDepartments);
+
+            // 完全に新しいステートオブジェクトを作成
+            const newState = {
+                ...state,
                 departments: newDepartments,
                 isHistoryAction: false
             };
+
+            // 履歴アクションでなければ履歴に追加
+            if (state.isInitialized && !state.isDragging && !state.isHistoryAction) {
+                console.log('履歴に追加しています');
+                const currentState = {
+                    nodes: state.nodes,
+                    edges: state.edges,
+                    departments: newDepartments
+                };
+
+                const newHistory = [...state.history.slice(0, state.currentIndex + 1), currentState];
+
+                // 状態をストレージに保存
+                saveToStorage({
+                    nodes: state.nodes,
+                    edges: state.edges,
+                    departments: newDepartments
+                });
+                console.log('ストレージに保存しました');
+
+                // 履歴情報も追加
+                newState.history = newHistory;
+                newState.currentIndex = state.currentIndex + 1;
+            }
+
+            console.log('新しい状態を返します:', newState);
+            return newState;
         });
+
+        // 部署が追加されたら、別途状態を取得して確認
+        if (departmentAdded) {
+            setTimeout(() => {
+                const currentState = get();
+                console.log('追加後の状態確認:', currentState.departments);
+            }, 0);
+        }
     },
 
     // イベントからのノード追加ハンドラ

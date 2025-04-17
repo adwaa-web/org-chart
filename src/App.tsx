@@ -142,7 +142,24 @@ function App() {
               departments={departments}
               onSelect={handleDepartmentSelect}
               onColorSelect={handleColorSelect}
-              onAdd={handleAddDepartment}
+              onAdd={(departmentName) => {
+                console.log('App: handleAddDepartment呼び出し:', departmentName);
+                // 明示的に部署名をdepartmentsに追加
+                handleAddDepartment(departmentName);
+              }}
+              onAddNode={(departmentName) => {
+                console.log('App: onAddNode呼び出し:', departmentName);
+
+                // 常に新しいノードを追加する
+                // 新しいノードを追加
+                addNode();
+
+                // 少し遅延させて名前を更新（追加が完了した後）
+                setTimeout(() => {
+                  console.log('新しいノードの名前を更新:', departmentName);
+                  handleDepartmentSelect(departmentName);
+                }, 100);
+              }}
               selectedNode={selectedNode}
             />
           </div>
