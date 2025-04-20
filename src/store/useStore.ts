@@ -10,7 +10,14 @@ import {
     NodeChange,
     EdgeChange
 } from 'reactflow';
-import { DepartmentNode, StorageData, User } from '../types';
+import { DepartmentNode, UserNode, OrgChartNode, StorageData, User } from '../types';
+
+// エッジスタイルの型定義
+interface EdgeStyle {
+    stroke: string;
+    strokeWidth: number;
+    strokeDasharray?: string;
+}
 
 // 初期データ
 const initialDepartments = [
@@ -42,64 +49,91 @@ const initialUsers: User[] = [
     { id: 'user13', name: '斎藤真由美', position: '製造部員' },
 ];
 
-const initialNodes: DepartmentNode[] = [
+// 部署ノードの初期データ
+const initialDepartmentNodes: DepartmentNode[] = [
     {
         id: 'president',
         type: 'department',
         position: { x: 0, y: 150 },
-        data: { label: '代表取締役社長', color: 'blue', users: ['user1'] },
+        data: { label: '代表取締役社長', color: 'blue' },
     },
     {
         id: 'hq',
         type: 'department',
         position: { x: 200, y: 50 },
-        data: { label: '本社', color: 'amber', users: ['user2'] },
+        data: { label: '本社', color: 'amber' },
     },
     {
         id: 'factory',
         type: 'department',
         position: { x: 200, y: 250 },
-        data: { label: '工場部門', color: 'emerald', users: ['user3'] },
+        data: { label: '工場部門', color: 'emerald' },
     },
     {
         id: 'admin',
         type: 'department',
         position: { x: 400, y: 0 },
-        data: { label: '総務部', color: 'orange', users: ['user4', 'user5'] },
+        data: { label: '総務部', color: 'orange' },
     },
     {
         id: 'sales',
         type: 'department',
         position: { x: 400, y: 50 },
-        data: { label: '営業部', color: 'orange', users: ['user6', 'user7'] },
+        data: { label: '営業部', color: 'orange' },
     },
     {
         id: 'retail',
         type: 'department',
         position: { x: 400, y: 100 },
-        data: { label: '販売部', color: 'orange', users: ['user8'] },
+        data: { label: '販売部', color: 'orange' },
     },
     {
         id: 'quality',
         type: 'department',
         position: { x: 400, y: 200 },
-        data: { label: '品質管理部', color: 'green', users: ['user9'] },
+        data: { label: '品質管理部', color: 'green' },
     },
     {
         id: 'tech',
         type: 'department',
         position: { x: 400, y: 250 },
-        data: { label: '技術部', color: 'green', users: ['user10', 'user11'] },
+        data: { label: '技術部', color: 'green' },
     },
     {
         id: 'manufacturing',
         type: 'department',
         position: { x: 400, y: 300 },
-        data: { label: '製造部', color: 'green', users: ['user12', 'user13'] },
+        data: { label: '製造部', color: 'green' },
     },
 ];
 
-const initialEdges: Edge[] = [
+// ユーザーノードの初期データ
+const initialUserNodes: UserNode[] = [
+    {
+        id: 'usernode-1',
+        type: 'user',
+        position: { x: 100, y: 150 },
+        data: { userId: 'user1', name: '山田太郎', position: '社長' },
+        sourceNodeId: 'president'
+    },
+    {
+        id: 'usernode-2',
+        type: 'user',
+        position: { x: 300, y: 50 },
+        data: { userId: 'user2', name: '鈴木一郎', position: '本社長' },
+        sourceNodeId: 'hq'
+    },
+    {
+        id: 'usernode-3',
+        type: 'user',
+        position: { x: 300, y: 250 },
+        data: { userId: 'user3', name: '佐藤健太', position: '工場長' },
+        sourceNodeId: 'factory'
+    }
+];
+
+// 部署間のエッジ初期データ
+const initialDepartmentEdges: Edge[] = [
     {
         id: 'e1',
         source: 'president',
@@ -158,9 +192,38 @@ const initialEdges: Edge[] = [
     },
 ];
 
+// ユーザーと部署を結ぶエッジの初期データ
+const initialUserEdges: Edge[] = [
+    {
+        id: 'u1',
+        source: 'president',
+        target: 'usernode-1',
+        type: 'step',
+        style: { stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '5,5' }
+    },
+    {
+        id: 'u2',
+        source: 'hq',
+        target: 'usernode-2',
+        type: 'step',
+        style: { stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '5,5' }
+    },
+    {
+        id: 'u3',
+        source: 'factory',
+        target: 'usernode-3',
+        type: 'step',
+        style: { stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '5,5' }
+    }
+];
+
+// 全ノードとエッジの初期データ
+const initialNodes: OrgChartNode[] = [...initialDepartmentNodes, ...initialUserNodes];
+const initialEdges: Edge[] = [...initialDepartmentEdges, ...initialUserEdges];
+
 // 履歴用の型定義
 interface HistoryState {
-    nodes: DepartmentNode[];
+    nodes: OrgChartNode[];
     edges: Edge[];
     departments: string[];
     users: User[];
@@ -169,7 +232,7 @@ interface HistoryState {
 // ストア状態の型定義
 interface OrgChartState {
     // ノードとエッジの状態
-    nodes: DepartmentNode[];
+    nodes: OrgChartNode[];
     edges: Edge[];
     departments: string[];
     users: User[];
@@ -199,7 +262,7 @@ interface OrgChartState {
     handleDepartmentSelect: (department: string) => void;
     handleColorSelect: (color: string) => void;
     handleAddDepartment: (department: string) => void;
-    handleAddNodeFromEvent: (newNode: DepartmentNode) => void;
+    handleAddNodeFromEvent: (newNode: OrgChartNode) => void;
     handleUpdateNodePosition: (id: string, position: { x: number, y: number }) => void;
     handleUndo: () => void;
     handleRedo: () => void;
@@ -208,8 +271,6 @@ interface OrgChartState {
 
     // ユーザー関連のアクション
     handleAddUser: (user: User) => void;
-    handleAssignUserToDepartment: (departmentId: string, userId: string) => void;
-    handleRemoveUserFromDepartment: (departmentId: string, userId: string) => void;
 }
 
 // ローカルストレージからデータをロード
@@ -258,7 +319,7 @@ const useStore = create<OrgChartState>((set, get) => ({
 
         // ノードに変更を適用
         set(state => ({
-            nodes: applyNodeChanges(changes, state.nodes) as DepartmentNode[],
+            nodes: applyNodeChanges(changes, state.nodes.map(node => ({ ...node }))) as unknown as OrgChartNode[],
         }));
 
         if (isDragEnd) {
@@ -334,10 +395,20 @@ const useStore = create<OrgChartState>((set, get) => ({
     // 接続時のハンドラ
     onConnect: (connection: Connection) => {
         set(state => {
+            // エッジタイプを決定 - ユーザーノードが含まれている場合は点線
+            const sourceNode = state.nodes.find(node => node.id === connection.source);
+            const targetNode = state.nodes.find(node => node.id === connection.target);
+
+            let edgeStyle: EdgeStyle = { stroke: '#cbd5e1', strokeWidth: 2 };
+
+            if (sourceNode?.type === 'user' || targetNode?.type === 'user') {
+                edgeStyle = { stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '5,5' };
+            }
+
             const newEdges = addEdge({
                 ...connection,
                 type: 'step',
-                style: { stroke: '#cbd5e1', strokeWidth: 2 },
+                style: edgeStyle,
             }, state.edges);
 
             // 履歴を更新し、ローカルストレージに保存
@@ -426,11 +497,12 @@ const useStore = create<OrgChartState>((set, get) => ({
         set(state => {
             if (!state.selectedNode) return state;
 
-            const newNodes = state.nodes.map(node =>
-                node.id === state.selectedNode?.id
-                    ? { ...node, data: { ...node.data, label: department } }
-                    : node
-            );
+            const newNodes = state.nodes.map(node => {
+                if (node.id === state.selectedNode?.id && node.type === 'department') {
+                    return { ...node, data: { ...node.data, label: department } };
+                }
+                return node;
+            }) as OrgChartNode[];
 
             // 履歴アクションでなければ履歴に追加
             if (state.isInitialized && !state.isDragging && !state.isHistoryAction) {
@@ -460,11 +532,12 @@ const useStore = create<OrgChartState>((set, get) => ({
         set(state => {
             if (!state.selectedNode) return state;
 
-            const newNodes = state.nodes.map(node =>
-                node.id === state.selectedNode?.id
-                    ? { ...node, data: { ...node.data, color } }
-                    : node
-            );
+            const newNodes = state.nodes.map(node => {
+                if (node.id === state.selectedNode?.id && node.type === 'department') {
+                    return { ...node, data: { ...node.data, color } };
+                }
+                return node;
+            }) as OrgChartNode[];
 
             // 履歴アクションでなければ履歴に追加
             if (state.isInitialized && !state.isDragging && !state.isHistoryAction) {
@@ -518,7 +591,7 @@ const useStore = create<OrgChartState>((set, get) => ({
     },
 
     // イベントからのノード追加ハンドラ
-    handleAddNodeFromEvent: (newNode: DepartmentNode) => {
+    handleAddNodeFromEvent: (newNode: OrgChartNode) => {
         set(state => {
             const newNodes = [...state.nodes, newNode];
 
@@ -526,12 +599,16 @@ const useStore = create<OrgChartState>((set, get) => ({
             let newEdges = [...state.edges];
 
             if (newNode.sourceNodeId) {
+                const edgeStyle = newNode.type === 'user'
+                    ? { stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '5,5' }
+                    : { stroke: '#cbd5e1', strokeWidth: 2 };
+
                 const newEdge: Edge = {
                     id: `e-${Date.now()}`,
                     source: newNode.sourceNodeId,
                     target: newNode.id,
                     type: 'step',
-                    style: { stroke: '#cbd5e1', strokeWidth: 2 }
+                    style: edgeStyle
                 };
 
                 newEdges = [...state.edges, newEdge];
@@ -548,7 +625,7 @@ const useStore = create<OrgChartState>((set, get) => ({
                 return {
                     nodes: newNodes,
                     edges: newEdges,
-                    selectedNode: newNode,
+                    selectedNode: newNode.type === 'department' ? newNode as DepartmentNode : state.selectedNode,
                     isSidebarOpen: true,
                     history: newHistory,
                     currentIndex: state.currentIndex + 1,
@@ -559,7 +636,7 @@ const useStore = create<OrgChartState>((set, get) => ({
             return {
                 nodes: newNodes,
                 edges: newEdges,
-                selectedNode: newNode,
+                selectedNode: newNode.type === 'department' ? newNode as DepartmentNode : state.selectedNode,
                 isSidebarOpen: true,
                 isHistoryAction: false
             };
@@ -571,7 +648,7 @@ const useStore = create<OrgChartState>((set, get) => ({
         set(state => {
             const newNodes = state.nodes.map(node =>
                 node.id === id ? { ...node, position } : node
-            );
+            ) as OrgChartNode[];
 
             // 履歴アクションでなければ履歴に追加
             if (state.isInitialized && !state.isDragging && !state.isHistoryAction) {
@@ -709,84 +786,7 @@ const useStore = create<OrgChartState>((set, get) => ({
                 isHistoryAction: false
             };
         });
-    },
-
-    // ユーザーを部署に割り当てるハンドラ
-    handleAssignUserToDepartment: (departmentId: string, userId: string) => {
-        set(state => {
-            const newNodes = state.nodes.map(node =>
-                node.id === departmentId
-                    ? {
-                        ...node,
-                        data: {
-                            ...node.data,
-                            users: [...(node.data.users || []), userId]
-                        }
-                    }
-                    : node
-            );
-
-            // 履歴アクションでなければ履歴に追加
-            if (state.isInitialized && !state.isDragging && !state.isHistoryAction) {
-                const currentState = { nodes: newNodes, edges: state.edges, departments: state.departments, users: state.users };
-                const newHistory = [...state.history.slice(0, state.currentIndex + 1), currentState];
-
-                // 状態をストレージに保存
-                saveToStorage({ nodes: newNodes, edges: state.edges, departments: state.departments, users: state.users });
-
-                return {
-                    nodes: newNodes,
-                    history: newHistory,
-                    currentIndex: state.currentIndex + 1,
-                    isHistoryAction: false
-                };
-            }
-
-            return {
-                nodes: newNodes,
-                isHistoryAction: false
-            };
-        });
-    },
-
-    // ユーザーを部署から削除するハンドラ
-    handleRemoveUserFromDepartment: (departmentId: string, userId: string) => {
-        set(state => {
-            const newNodes = state.nodes.map(node =>
-                node.id === departmentId
-                    ? {
-                        ...node,
-                        data: {
-                            ...node.data,
-                            users: (node.data.users || []).filter(user => user !== userId)
-                        }
-                    }
-                    : node
-            );
-
-            // 履歴アクションでなければ履歴に追加
-            if (state.isInitialized && !state.isDragging && !state.isHistoryAction) {
-                const currentState = { nodes: newNodes, edges: state.edges, departments: state.departments, users: state.users };
-                const newHistory = [...state.history.slice(0, state.currentIndex + 1), currentState];
-
-                // 状態をストレージに保存
-                saveToStorage({ nodes: newNodes, edges: state.edges, departments: state.departments, users: state.users });
-
-                return {
-                    nodes: newNodes,
-                    history: newHistory,
-                    currentIndex: state.currentIndex + 1,
-                    isHistoryAction: false
-                };
-            }
-
-            return {
-                nodes: newNodes,
-                isHistoryAction: false
-            };
-        });
     }
 }));
-
 
 export default useStore;

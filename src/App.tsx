@@ -7,6 +7,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 
 import { DepartmentNode } from './components/DepartmentNode';
+import { UserNode } from './components/UserNode';
 import { DepartmentSearch } from './components/DepartmentSearch';
 import { UserAssignment } from './components/UserAssignment';
 import { DepartmentNode as DepartmentNodeType } from './types';
@@ -16,6 +17,7 @@ import useStore from './store/useStore';
 // カスタムノードタイプの定義
 const nodeTypes = {
   department: DepartmentNode,
+  user: UserNode,
 };
 
 function App() {
@@ -44,9 +46,7 @@ function App() {
     handleRedo,
     loadFromStorage,
     isInitialized,
-    handleAddUser,
-    handleAssignUserToDepartment,
-    handleRemoveUserFromDepartment,
+    handleAddUser
   } = useStore();
 
   // 初期化処理 - ローカルストレージからデータをロード
@@ -158,7 +158,7 @@ function App() {
                 ユーザー管理
               </button>
             </div>
-            
+
             {activeTab === 'department' ? (
               <div>
                 <h3 className="text-lg font-medium mb-4">部署を編集</h3>
@@ -192,9 +192,39 @@ function App() {
                 <h3 className="text-lg font-medium mb-4">ユーザー管理</h3>
                 <UserAssignment
                   users={users}
-                  departmentUsers={selectedNode.data.users || []}
-                  onAssignUser={(userId) => handleAssignUserToDepartment(selectedNode.id, userId)}
-                  onRemoveUser={(userId) => handleRemoveUserFromDepartment(selectedNode.id, userId)}
+                  departmentUsers={[]}
+                  onAssignUser={(userId) => {
+                    // ユーザーノードを作成し、部署に紐付けるロジックに変更
+                    const user = users.find(u => u.id === userId);
+                    if (user) {
+                      // ユーザーノードの位置を部署ノードの右側に配置
+                      const departmentPosition = selectedNode.position;
+                      const position = {
+                        x: departmentPosition.x + 200,
+                        y: departmentPosition.y
+                      };
+
+                      // ユーザーノードの作成イベントを発火
+                      const userNode = {
+                        id: `user-${userId}-${Date.now()}`,
+                        type: 'user',
+                        position,
+                        data: {
+                          userId,
+                          name: user.name,
+                          position: user.position
+                        },
+                        sourceNodeId: selectedNode.id
+                      };
+
+                      const event = new CustomEvent('addNode', { detail: userNode });
+                      window.dispatchEvent(event);
+                    }
+                  }}
+                  onRemoveUser={() => {
+                    // この機能は別の方法で実装する必要がある
+                    alert('ユーザーノードを削除するには、ノードを直接選択して削除してください');
+                  }}
                   onAddUser={handleAddUser}
                 />
               </div>
