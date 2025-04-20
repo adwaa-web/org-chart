@@ -7,9 +7,10 @@ import {
     OnEdgesChange,
     applyNodeChanges,
     applyEdgeChanges,
-    NodeChange
+    NodeChange,
+    EdgeChange
 } from 'reactflow';
-import { DepartmentNode, StorageData } from '../types';
+import { DepartmentNode, StorageData, User } from '../types';
 
 // 初期データ
 const initialDepartments = [
@@ -24,60 +25,77 @@ const initialDepartments = [
     '製造部',
 ];
 
+// 初期ユーザーデータ
+const initialUsers: User[] = [
+    { id: 'user1', name: '山田太郎', position: '社長' },
+    { id: 'user2', name: '鈴木一郎', position: '本社長' },
+    { id: 'user3', name: '佐藤健太', position: '工場長' },
+    { id: 'user4', name: '田中優子', position: '総務部長' },
+    { id: 'user5', name: '高橋誠', position: '総務部員' },
+    { id: 'user6', name: '渡辺直樹', position: '営業部長' },
+    { id: 'user7', name: '伊藤美咲', position: '営業部員' },
+    { id: 'user8', name: '小林大輔', position: '販売部長' },
+    { id: 'user9', name: '加藤裕太', position: '品質管理部長' },
+    { id: 'user10', name: '吉田花子', position: '技術部長' },
+    { id: 'user11', name: '山本和也', position: '技術部員' },
+    { id: 'user12', name: '中村祐介', position: '製造部長' },
+    { id: 'user13', name: '斎藤真由美', position: '製造部員' },
+];
+
 const initialNodes: DepartmentNode[] = [
     {
         id: 'president',
         type: 'department',
         position: { x: 0, y: 150 },
-        data: { label: '代表取締役社長', color: 'blue' },
+        data: { label: '代表取締役社長', color: 'blue', users: ['user1'] },
     },
     {
         id: 'hq',
         type: 'department',
         position: { x: 200, y: 50 },
-        data: { label: '本社', color: 'amber' },
+        data: { label: '本社', color: 'amber', users: ['user2'] },
     },
     {
         id: 'factory',
         type: 'department',
         position: { x: 200, y: 250 },
-        data: { label: '工場部門', color: 'emerald' },
+        data: { label: '工場部門', color: 'emerald', users: ['user3'] },
     },
     {
         id: 'admin',
         type: 'department',
         position: { x: 400, y: 0 },
-        data: { label: '総務部', color: 'orange' },
+        data: { label: '総務部', color: 'orange', users: ['user4', 'user5'] },
     },
     {
         id: 'sales',
         type: 'department',
         position: { x: 400, y: 50 },
-        data: { label: '営業部', color: 'orange' },
+        data: { label: '営業部', color: 'orange', users: ['user6', 'user7'] },
     },
     {
         id: 'retail',
         type: 'department',
         position: { x: 400, y: 100 },
-        data: { label: '販売部', color: 'orange' },
+        data: { label: '販売部', color: 'orange', users: ['user8'] },
     },
     {
         id: 'quality',
         type: 'department',
         position: { x: 400, y: 200 },
-        data: { label: '品質管理部', color: 'green' },
+        data: { label: '品質管理部', color: 'green', users: ['user9'] },
     },
     {
         id: 'tech',
         type: 'department',
         position: { x: 400, y: 250 },
-        data: { label: '技術部', color: 'green' },
+        data: { label: '技術部', color: 'green', users: ['user10', 'user11'] },
     },
     {
         id: 'manufacturing',
         type: 'department',
         position: { x: 400, y: 300 },
-        data: { label: '製造部', color: 'green' },
+        data: { label: '製造部', color: 'green', users: ['user12', 'user13'] },
     },
 ];
 
@@ -145,6 +163,7 @@ interface HistoryState {
     nodes: DepartmentNode[];
     edges: Edge[];
     departments: string[];
+    users: User[];
 }
 
 // ストア状態の型定義
@@ -153,10 +172,12 @@ interface OrgChartState {
     nodes: DepartmentNode[];
     edges: Edge[];
     departments: string[];
+    users: User[];
 
     // 選択関連
     selectedNode: DepartmentNode | null;
     isSidebarOpen: boolean;
+    activeTab: 'department' | 'users';
 
     // 履歴関連
     history: HistoryState[];
@@ -174,6 +195,7 @@ interface OrgChartState {
     addNode: () => void;
     setSelectedNode: (node: DepartmentNode | null) => void;
     setIsSidebarOpen: (open: boolean) => void;
+    setActiveTab: (tab: 'department' | 'users') => void;
     handleDepartmentSelect: (department: string) => void;
     handleColorSelect: (color: string) => void;
     handleAddDepartment: (department: string) => void;
@@ -183,13 +205,23 @@ interface OrgChartState {
     handleRedo: () => void;
     loadFromStorage: () => void;
     saveToStorage: () => void;
+
+    // ユーザー関連のアクション
+    handleAddUser: (user: User) => void;
+    handleAssignUserToDepartment: (departmentId: string, userId: string) => void;
+    handleRemoveUserFromDepartment: (departmentId: string, userId: string) => void;
 }
 
 // ローカルストレージからデータをロード
 const loadFromStorage = (): StorageData | null => {
     const savedData = localStorage.getItem('orgChart');
     if (savedData) {
-        return JSON.parse(savedData);
+        const parsed = JSON.parse(savedData);
+        // 古いフォーマットのデータのusersフィールドがない場合は追加する
+        if (!parsed.users) {
+            parsed.users = initialUsers;
+        }
+        return parsed;
     }
     return null;
 };
@@ -201,12 +233,14 @@ const saveToStorage = (data: StorageData) => {
 
 // Zustandストアの作成
 const useStore = create<OrgChartState>((set, get) => ({
-    // 初期状態
+    // ノードとエッジの初期化
     nodes: initialNodes,
     edges: initialEdges,
     departments: initialDepartments,
+    users: initialUsers,
     selectedNode: null,
     isSidebarOpen: true,
+    activeTab: 'department',
     history: [],
     currentIndex: -1,
     isDragging: false,
@@ -214,7 +248,7 @@ const useStore = create<OrgChartState>((set, get) => ({
     isInitialized: false,
 
     // ノード変更時のハンドラ
-    onNodesChange: (changes) => {
+    onNodesChange: (changes: NodeChange[]) => {
         const isDragStart = changes.some((change: NodeChange) => 'type' in change && change.type === 'position' && change.dragging === true);
         const isDragEnd = changes.some((change: NodeChange) => 'type' in change && change.type === 'position' && change.dragging === false);
 
@@ -230,12 +264,25 @@ const useStore = create<OrgChartState>((set, get) => ({
         if (isDragEnd) {
             set(state => {
                 // ドラッグ終了時に履歴に追加
-                const { nodes, edges, departments } = state;
-                const currentState = { nodes, edges, departments };
+                const historyEntry: HistoryState = {
+                    nodes: [...state.nodes],
+                    edges: [...state.edges],
+                    departments: [...state.departments],
+                    users: [...state.users]
+                };
 
                 // 履歴に追加
                 if (state.isInitialized && !state.isHistoryAction) {
-                    const newHistory = [...state.history.slice(0, state.currentIndex + 1), currentState];
+                    const newHistory = [...state.history.slice(0, state.currentIndex + 1), historyEntry];
+
+                    // 状態をストレージに保存
+                    saveToStorage({
+                        nodes: state.nodes,
+                        edges: state.edges,
+                        departments: state.departments,
+                        users: state.users
+                    });
+
                     return {
                         isDragging: false,
                         history: newHistory,
@@ -245,71 +292,77 @@ const useStore = create<OrgChartState>((set, get) => ({
 
                 return { isDragging: false, isHistoryAction: false };
             });
-
-            // 状態をストレージに保存
-            const { nodes, edges, departments } = get();
-            saveToStorage({ nodes, edges, departments });
         }
     },
 
     // エッジ変更時のハンドラ
-    onEdgesChange: (changes) => {
+    onEdgesChange: (changes: EdgeChange[]) => {
         set(state => {
             const newEdges = applyEdgeChanges(changes, state.edges);
 
-            // 履歴アクションでなければ履歴に追加
-            if (state.isInitialized && !state.isDragging && !state.isHistoryAction) {
-                const currentState = { nodes: state.nodes, edges: newEdges, departments: state.departments };
-                const newHistory = [...state.history.slice(0, state.currentIndex + 1), currentState];
+            if (!state.isHistoryAction) {
+                // 履歴アクションでない場合のみ、履歴を更新しローカルストレージに保存
+                const historyEntry: HistoryState = {
+                    nodes: [...state.nodes],
+                    edges: [...newEdges],
+                    departments: [...state.departments],
+                    users: [...state.users],
+                };
 
-                // 状態をストレージに保存
-                saveToStorage({ nodes: state.nodes, edges: newEdges, departments: state.departments });
+                const newHistory = state.history.slice(0, state.currentIndex + 1);
+                newHistory.push(historyEntry);
+
+                saveToStorage({
+                    nodes: state.nodes,
+                    edges: newEdges,
+                    departments: state.departments,
+                    users: state.users,
+                });
 
                 return {
                     edges: newEdges,
                     history: newHistory,
                     currentIndex: state.currentIndex + 1,
-                    isHistoryAction: false
+                    isHistoryAction: false,
                 };
             }
 
-            return {
-                edges: newEdges,
-                isHistoryAction: false
-            };
+            return { edges: newEdges, isHistoryAction: false };
         });
     },
 
     // 接続時のハンドラ
-    onConnect: (connection) => {
+    onConnect: (connection: Connection) => {
         set(state => {
-            const newEdge = {
+            const newEdges = addEdge({
                 ...connection,
                 type: 'step',
-                style: { stroke: '#cbd5e1', strokeWidth: 2 }
+                style: { stroke: '#cbd5e1', strokeWidth: 2 },
+            }, state.edges);
+
+            // 履歴を更新し、ローカルストレージに保存
+            const historyEntry: HistoryState = {
+                nodes: [...state.nodes],
+                edges: [...newEdges],
+                departments: [...state.departments],
+                users: [...state.users],
             };
 
-            const newEdges = addEdge(newEdge, state.edges);
+            const newHistory = state.history.slice(0, state.currentIndex + 1);
+            newHistory.push(historyEntry);
 
-            // 履歴アクションでなければ履歴に追加
-            if (state.isInitialized && !state.isDragging && !state.isHistoryAction) {
-                const currentState = { nodes: state.nodes, edges: newEdges, departments: state.departments };
-                const newHistory = [...state.history.slice(0, state.currentIndex + 1), currentState];
-
-                // 状態をストレージに保存
-                saveToStorage({ nodes: state.nodes, edges: newEdges, departments: state.departments });
-
-                return {
-                    edges: newEdges,
-                    history: newHistory,
-                    currentIndex: state.currentIndex + 1,
-                    isHistoryAction: false
-                };
-            }
+            saveToStorage({
+                nodes: state.nodes,
+                edges: newEdges,
+                departments: state.departments,
+                users: state.users,
+            });
 
             return {
                 edges: newEdges,
-                isHistoryAction: false
+                history: newHistory,
+                currentIndex: state.currentIndex + 1,
+                isHistoryAction: false,
             };
         });
     },
@@ -328,11 +381,11 @@ const useStore = create<OrgChartState>((set, get) => ({
 
             // 履歴アクションでなければ履歴に追加
             if (state.isInitialized && !state.isDragging && !state.isHistoryAction) {
-                const currentState = { nodes: newNodes, edges: state.edges, departments: state.departments };
+                const currentState = { nodes: newNodes, edges: state.edges, departments: state.departments, users: state.users };
                 const newHistory = [...state.history.slice(0, state.currentIndex + 1), currentState];
 
                 // 状態をストレージに保存
-                saveToStorage({ nodes: newNodes, edges: state.edges, departments: state.departments });
+                saveToStorage({ nodes: newNodes, edges: state.edges, departments: state.departments, users: state.users });
 
                 return {
                     nodes: newNodes,
@@ -354,17 +407,22 @@ const useStore = create<OrgChartState>((set, get) => ({
     },
 
     // 選択ノードの設定
-    setSelectedNode: (node) => {
+    setSelectedNode: (node: DepartmentNode | null) => {
         set({ selectedNode: node });
     },
 
     // サイドバー開閉状態の設定
-    setIsSidebarOpen: (open) => {
+    setIsSidebarOpen: (open: boolean) => {
         set({ isSidebarOpen: open });
     },
 
+    // アクティブタブの設定
+    setActiveTab: (tab: 'department' | 'users') => {
+        set({ activeTab: tab });
+    },
+
     // 部署選択のハンドラ
-    handleDepartmentSelect: (department) => {
+    handleDepartmentSelect: (department: string) => {
         set(state => {
             if (!state.selectedNode) return state;
 
@@ -376,11 +434,11 @@ const useStore = create<OrgChartState>((set, get) => ({
 
             // 履歴アクションでなければ履歴に追加
             if (state.isInitialized && !state.isDragging && !state.isHistoryAction) {
-                const currentState = { nodes: newNodes, edges: state.edges, departments: state.departments };
+                const currentState = { nodes: newNodes, edges: state.edges, departments: state.departments, users: state.users };
                 const newHistory = [...state.history.slice(0, state.currentIndex + 1), currentState];
 
                 // 状態をストレージに保存
-                saveToStorage({ nodes: newNodes, edges: state.edges, departments: state.departments });
+                saveToStorage({ nodes: newNodes, edges: state.edges, departments: state.departments, users: state.users });
 
                 return {
                     nodes: newNodes,
@@ -398,7 +456,7 @@ const useStore = create<OrgChartState>((set, get) => ({
     },
 
     // 色選択のハンドラ
-    handleColorSelect: (color) => {
+    handleColorSelect: (color: string) => {
         set(state => {
             if (!state.selectedNode) return state;
 
@@ -410,11 +468,11 @@ const useStore = create<OrgChartState>((set, get) => ({
 
             // 履歴アクションでなければ履歴に追加
             if (state.isInitialized && !state.isDragging && !state.isHistoryAction) {
-                const currentState = { nodes: newNodes, edges: state.edges, departments: state.departments };
+                const currentState = { nodes: newNodes, edges: state.edges, departments: state.departments, users: state.users };
                 const newHistory = [...state.history.slice(0, state.currentIndex + 1), currentState];
 
                 // 状態をストレージに保存
-                saveToStorage({ nodes: newNodes, edges: state.edges, departments: state.departments });
+                saveToStorage({ nodes: newNodes, edges: state.edges, departments: state.departments, users: state.users });
 
                 return {
                     nodes: newNodes,
@@ -431,75 +489,36 @@ const useStore = create<OrgChartState>((set, get) => ({
         });
     },
 
-    // 部署追加のハンドラ
-    handleAddDepartment: (department) => {
-        console.log('handleAddDepartment が呼び出されました:', department);
-
-        // 部署が追加されたかどうかを追跡するための変数
-        let departmentAdded = false;
-
-        // 直接イミュータブルな方法でステートを更新
+    // 部署追加ハンドラ
+    handleAddDepartment: (department: string) => {
         set(state => {
-            console.log('現在の部署リスト:', state.departments);
-
-            if (state.departments.includes(department)) {
-                console.log('部署は既に存在しています');
-                return state; // 変更なし
-            }
-
-            console.log('新しい部署を追加します');
-            // 新しい配列を作成
             const newDepartments = [...state.departments, department];
-            departmentAdded = true;
-
-            console.log('新しい部署リスト:', newDepartments);
-
-            // 完全に新しいステートオブジェクトを作成
-            const newState = {
-                ...state,
-                departments: newDepartments,
-                isHistoryAction: false
-            };
 
             // 履歴アクションでなければ履歴に追加
             if (state.isInitialized && !state.isDragging && !state.isHistoryAction) {
-                console.log('履歴に追加しています');
-                const currentState = {
-                    nodes: state.nodes,
-                    edges: state.edges,
-                    departments: newDepartments
-                };
-
+                const currentState = { nodes: state.nodes, edges: state.edges, departments: newDepartments, users: state.users };
                 const newHistory = [...state.history.slice(0, state.currentIndex + 1), currentState];
 
                 // 状態をストレージに保存
-                saveToStorage({
-                    nodes: state.nodes,
-                    edges: state.edges,
-                    departments: newDepartments
-                });
-                console.log('ストレージに保存しました');
+                saveToStorage({ nodes: state.nodes, edges: state.edges, departments: newDepartments, users: state.users });
 
-                // 履歴情報も追加
-                newState.history = newHistory;
-                newState.currentIndex = state.currentIndex + 1;
+                return {
+                    departments: newDepartments,
+                    history: newHistory,
+                    currentIndex: state.currentIndex + 1,
+                    isHistoryAction: false
+                };
             }
 
-            console.log('新しい状態を返します:', newState);
-            return newState;
+            return {
+                departments: newDepartments,
+                isHistoryAction: false
+            };
         });
-
-        // 部署が追加されたら、別途状態を取得して確認
-        if (departmentAdded) {
-            setTimeout(() => {
-                const currentState = get();
-                console.log('追加後の状態確認:', currentState.departments);
-            }, 0);
-        }
     },
 
     // イベントからのノード追加ハンドラ
-    handleAddNodeFromEvent: (newNode) => {
+    handleAddNodeFromEvent: (newNode: DepartmentNode) => {
         set(state => {
             const newNodes = [...state.nodes, newNode];
 
@@ -520,11 +539,11 @@ const useStore = create<OrgChartState>((set, get) => ({
 
             // 履歴アクションでなければ履歴に追加
             if (state.isInitialized && !state.isDragging && !state.isHistoryAction) {
-                const currentState = { nodes: newNodes, edges: newEdges, departments: state.departments };
+                const currentState = { nodes: newNodes, edges: newEdges, departments: state.departments, users: state.users };
                 const newHistory = [...state.history.slice(0, state.currentIndex + 1), currentState];
 
                 // 状態をストレージに保存
-                saveToStorage({ nodes: newNodes, edges: newEdges, departments: state.departments });
+                saveToStorage({ nodes: newNodes, edges: newEdges, departments: state.departments, users: state.users });
 
                 return {
                     nodes: newNodes,
@@ -548,7 +567,7 @@ const useStore = create<OrgChartState>((set, get) => ({
     },
 
     // ノード位置更新ハンドラ
-    handleUpdateNodePosition: (id, position) => {
+    handleUpdateNodePosition: (id: string, position: { x: number, y: number }) => {
         set(state => {
             const newNodes = state.nodes.map(node =>
                 node.id === id ? { ...node, position } : node
@@ -556,11 +575,11 @@ const useStore = create<OrgChartState>((set, get) => ({
 
             // 履歴アクションでなければ履歴に追加
             if (state.isInitialized && !state.isDragging && !state.isHistoryAction) {
-                const currentState = { nodes: newNodes, edges: state.edges, departments: state.departments };
+                const currentState = { nodes: newNodes, edges: state.edges, departments: state.departments, users: state.users };
                 const newHistory = [...state.history.slice(0, state.currentIndex + 1), currentState];
 
                 // 状態をストレージに保存
-                saveToStorage({ nodes: newNodes, edges: state.edges, departments: state.departments });
+                saveToStorage({ nodes: newNodes, edges: state.edges, departments: state.departments, users: state.users });
 
                 return {
                     nodes: newNodes,
@@ -587,6 +606,7 @@ const useStore = create<OrgChartState>((set, get) => ({
                     nodes: prevState.nodes,
                     edges: prevState.edges,
                     departments: prevState.departments,
+                    users: prevState.users,
                     currentIndex: state.currentIndex - 1,
                     isHistoryAction: true
                 };
@@ -604,6 +624,7 @@ const useStore = create<OrgChartState>((set, get) => ({
                     nodes: nextState.nodes,
                     edges: nextState.edges,
                     departments: nextState.departments,
+                    users: nextState.users,
                     currentIndex: state.currentIndex + 1,
                     isHistoryAction: true
                 };
@@ -619,13 +640,15 @@ const useStore = create<OrgChartState>((set, get) => ({
                 const history = [{
                     nodes: savedData.nodes,
                     edges: savedData.edges,
-                    departments: savedData.departments
+                    departments: savedData.departments,
+                    users: savedData.users,
                 }];
 
                 return {
                     nodes: savedData.nodes,
                     edges: savedData.edges,
                     departments: savedData.departments,
+                    users: savedData.users,
                     history,
                     currentIndex: 0,
                     isInitialized: true
@@ -636,7 +659,8 @@ const useStore = create<OrgChartState>((set, get) => ({
                 const history = [{
                     nodes: initialNodes,
                     edges: initialEdges,
-                    departments: initialDepartments
+                    departments: initialDepartments,
+                    users: initialUsers,
                 }];
 
                 return {
@@ -650,9 +674,119 @@ const useStore = create<OrgChartState>((set, get) => ({
 
     // 状態をストレージに保存
     saveToStorage: () => {
-        const { nodes, edges, departments } = get();
-        saveToStorage({ nodes, edges, departments });
+        const state = get();
+        saveToStorage({
+            nodes: state.nodes,
+            edges: state.edges,
+            departments: state.departments,
+            users: state.users,
+        });
+    },
+
+    // ユーザー追加ハンドラ
+    handleAddUser: (user: User) => {
+        set(state => {
+            const newUsers = [...state.users, user];
+
+            // 履歴アクションでなければ履歴に追加
+            if (state.isInitialized && !state.isDragging && !state.isHistoryAction) {
+                const currentState = { nodes: state.nodes, edges: state.edges, departments: state.departments, users: newUsers };
+                const newHistory = [...state.history.slice(0, state.currentIndex + 1), currentState];
+
+                // 状態をストレージに保存
+                saveToStorage({ nodes: state.nodes, edges: state.edges, departments: state.departments, users: newUsers });
+
+                return {
+                    users: newUsers,
+                    history: newHistory,
+                    currentIndex: state.currentIndex + 1,
+                    isHistoryAction: false
+                };
+            }
+
+            return {
+                users: newUsers,
+                isHistoryAction: false
+            };
+        });
+    },
+
+    // ユーザーを部署に割り当てるハンドラ
+    handleAssignUserToDepartment: (departmentId: string, userId: string) => {
+        set(state => {
+            const newNodes = state.nodes.map(node =>
+                node.id === departmentId
+                    ? {
+                        ...node,
+                        data: {
+                            ...node.data,
+                            users: [...(node.data.users || []), userId]
+                        }
+                    }
+                    : node
+            );
+
+            // 履歴アクションでなければ履歴に追加
+            if (state.isInitialized && !state.isDragging && !state.isHistoryAction) {
+                const currentState = { nodes: newNodes, edges: state.edges, departments: state.departments, users: state.users };
+                const newHistory = [...state.history.slice(0, state.currentIndex + 1), currentState];
+
+                // 状態をストレージに保存
+                saveToStorage({ nodes: newNodes, edges: state.edges, departments: state.departments, users: state.users });
+
+                return {
+                    nodes: newNodes,
+                    history: newHistory,
+                    currentIndex: state.currentIndex + 1,
+                    isHistoryAction: false
+                };
+            }
+
+            return {
+                nodes: newNodes,
+                isHistoryAction: false
+            };
+        });
+    },
+
+    // ユーザーを部署から削除するハンドラ
+    handleRemoveUserFromDepartment: (departmentId: string, userId: string) => {
+        set(state => {
+            const newNodes = state.nodes.map(node =>
+                node.id === departmentId
+                    ? {
+                        ...node,
+                        data: {
+                            ...node.data,
+                            users: (node.data.users || []).filter(user => user !== userId)
+                        }
+                    }
+                    : node
+            );
+
+            // 履歴アクションでなければ履歴に追加
+            if (state.isInitialized && !state.isDragging && !state.isHistoryAction) {
+                const currentState = { nodes: newNodes, edges: state.edges, departments: state.departments, users: state.users };
+                const newHistory = [...state.history.slice(0, state.currentIndex + 1), currentState];
+
+                // 状態をストレージに保存
+                saveToStorage({ nodes: newNodes, edges: state.edges, departments: state.departments, users: state.users });
+
+                return {
+                    nodes: newNodes,
+                    history: newHistory,
+                    currentIndex: state.currentIndex + 1,
+                    isHistoryAction: false
+                };
+            }
+
+            return {
+                nodes: newNodes,
+                isHistoryAction: false
+            };
+        });
     }
 }));
+
 
 export default useStore;

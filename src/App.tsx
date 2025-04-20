@@ -8,6 +8,7 @@ import 'reactflow/dist/style.css';
 
 import { DepartmentNode } from './components/DepartmentNode';
 import { DepartmentSearch } from './components/DepartmentSearch';
+import { UserAssignment } from './components/UserAssignment';
 import { DepartmentNode as DepartmentNodeType } from './types';
 import { Plus, ChevronRight, ChevronLeft } from 'lucide-react';
 import useStore from './store/useStore';
@@ -23,14 +24,17 @@ function App() {
     nodes,
     edges,
     departments,
+    users,
     selectedNode,
     isSidebarOpen,
+    activeTab,
     onNodesChange,
     onEdgesChange,
     onConnect,
     addNode,
     setSelectedNode,
     setIsSidebarOpen,
+    setActiveTab,
     handleDepartmentSelect,
     handleColorSelect,
     handleAddDepartment,
@@ -40,6 +44,9 @@ function App() {
     handleRedo,
     loadFromStorage,
     isInitialized,
+    handleAddUser,
+    handleAssignUserToDepartment,
+    handleRemoveUserFromDepartment,
   } = useStore();
 
   // 初期化処理 - ローカルストレージからデータをロード
@@ -137,31 +144,61 @@ function App() {
         </button>
         {selectedNode && (
           <div className="p-4">
-            <h3 className="text-lg font-medium mb-4">部署を編集</h3>
-            <DepartmentSearch
-              departments={departments}
-              onSelect={handleDepartmentSelect}
-              onColorSelect={handleColorSelect}
-              onAdd={(departmentName) => {
-                console.log('App: handleAddDepartment呼び出し:', departmentName);
-                // 明示的に部署名をdepartmentsに追加
-                handleAddDepartment(departmentName);
-              }}
-              onAddNode={(departmentName) => {
-                console.log('App: onAddNode呼び出し:', departmentName);
+            <div className="flex border-b mb-4">
+              <button
+                className={`py-2 px-4 font-medium ${activeTab === 'department' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
+                onClick={() => setActiveTab('department')}
+              >
+                部署情報
+              </button>
+              <button
+                className={`py-2 px-4 font-medium ${activeTab === 'users' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'}`}
+                onClick={() => setActiveTab('users')}
+              >
+                ユーザー管理
+              </button>
+            </div>
+            
+            {activeTab === 'department' ? (
+              <div>
+                <h3 className="text-lg font-medium mb-4">部署を編集</h3>
+                <DepartmentSearch
+                  departments={departments}
+                  onSelect={handleDepartmentSelect}
+                  onColorSelect={handleColorSelect}
+                  onAdd={(departmentName) => {
+                    console.log('App: handleAddDepartment呼び出し:', departmentName);
+                    // 明示的に部署名をdepartmentsに追加
+                    handleAddDepartment(departmentName);
+                  }}
+                  onAddNode={(departmentName) => {
+                    console.log('App: onAddNode呼び出し:', departmentName);
 
-                // 常に新しいノードを追加する
-                // 新しいノードを追加
-                addNode();
+                    // 常に新しいノードを追加する
+                    // 新しいノードを追加
+                    addNode();
 
-                // 少し遅延させて名前を更新（追加が完了した後）
-                setTimeout(() => {
-                  console.log('新しいノードの名前を更新:', departmentName);
-                  handleDepartmentSelect(departmentName);
-                }, 100);
-              }}
-              selectedNode={selectedNode}
-            />
+                    // 少し遅延させて名前を更新（追加が完了した後）
+                    setTimeout(() => {
+                      console.log('新しいノードの名前を更新:', departmentName);
+                      handleDepartmentSelect(departmentName);
+                    }, 100);
+                  }}
+                  selectedNode={selectedNode}
+                />
+              </div>
+            ) : (
+              <div>
+                <h3 className="text-lg font-medium mb-4">ユーザー管理</h3>
+                <UserAssignment
+                  users={users}
+                  departmentUsers={selectedNode.data.users || []}
+                  onAssignUser={(userId) => handleAssignUserToDepartment(selectedNode.id, userId)}
+                  onRemoveUser={(userId) => handleRemoveUserFromDepartment(selectedNode.id, userId)}
+                  onAddUser={handleAddUser}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
