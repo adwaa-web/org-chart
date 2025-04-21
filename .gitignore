@@ -23,3 +23,7 @@ dist-ssr
 *.sln
 *.sw?
 .qodo
+
+.bolt/
+windsurf_deployment.yaml
+
